@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import CanvasBoard from "../components/Canvas/CanvasBoard";
-import Toolbar from "../components/Toolbar/Toolbar";
+import Toolbar from "../components/toolbar/Toolbar";
 
 const STORAGE_KEYS = {
   room: "sketchsync_room",
