@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import CanvasBoard from "../components/Canvas/CanvasBoard";
+import CanvasBoard from "../components/canvas/CanvasBoard";
 import Toolbar from "../components/toolbar/Toolbar";
 
 const STORAGE_KEYS = {
