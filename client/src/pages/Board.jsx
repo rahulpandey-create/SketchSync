@@ -176,7 +176,7 @@ export default function Board() {
 
   return (
     <div className="min-h-screen bg-slate-50 px-4 py-4 text-slate-900 sm:px-6 lg:px-8">
-      <div className="mx-auto flex h-[calc(100vh-2rem)] w-full max-w-400 flex-col gap-4">
+      <div className="mx-auto flex h-[calc(100vh-2rem)] w-full max-w-[1600px] flex-col gap-4">
         <header className="flex flex-col gap-3 rounded-3xl border border-slate-200 bg-white px-4 py-4 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <div>
             <p className="text-xs font-medium uppercase tracking-[0.2em] text-slate-500">SketchSync</p>
