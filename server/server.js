@@ -2,6 +2,21 @@ const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
+const {
+  appendStroke,
+  getRoomState,
+} = require("./services/boardStore");
+
+(async () => {
+  await appendStroke("test-room", {
+    id: 1,
+    points: [1, 2, 3],
+  });
+
+  const room = await getRoomState("test-room");
+
+  console.log(room);
+})();
 
 const app = express();
 app.use(cors());
