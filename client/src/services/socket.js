@@ -1,11 +1,5 @@
 import { io } from "socket.io-client";
 
-/**
- * Prefer Vite env first, then CRA env, then localhost fallback.
- * Set one of these in your client env file:
- * - VITE_SOCKET_URL=http://localhost:3001
- * - REACT_APP_SOCKET_URL=http://localhost:3001
- */
 const SOCKET_URL =
   import.meta.env?.VITE_SOCKET_URL ||
   import.meta.env?.REACT_APP_SOCKET_URL ||
@@ -18,6 +12,7 @@ export const SOCKET_EVENTS = Object.freeze({
 
   JOIN_ROOM: "join-room",
   INIT: "init",
+  BOARD_STATE: "board-state",
   USER_JOINED: "user-joined",
   USER_LEFT: "user-left",
 
@@ -26,6 +21,8 @@ export const SOCKET_EVENTS = Object.freeze({
   STROKE_END: "stroke-end",
 
   BOARD_CLEAR: "board-clear",
+  UNDO_BOARD: "undo-board",
+  REDO_BOARD: "redo-board",
 
   CURSOR_MOVE: "cursor-move",
   CURSOR_LEAVE: "cursor-leave",
@@ -42,10 +39,8 @@ const socket = io(SOCKET_URL, {
   reconnectionDelayMax: 5000,
 });
 
-/** Prevent duplicate connect() calls. */
 let connectPromise = null;
 
-/** Normalize room names before sending them to the server. */
 export function normalizeRoomCode(room) {
   return String(room || "")
     .trim()
@@ -53,7 +48,6 @@ export function normalizeRoomCode(room) {
     .replace(/[^a-z0-9-]/g, "");
 }
 
-/** Connect once and reuse the same socket instance. */
 export async function connectSocket() {
   if (socket.connected) return socket;
   if (connectPromise) return connectPromise;
@@ -83,14 +77,12 @@ export async function connectSocket() {
   return connectPromise;
 }
 
-/** Hard disconnect the socket. */
 export function disconnectSocket() {
   if (socket.connected || socket.active) {
     socket.disconnect();
   }
 }
 
-/** Join a board room. Backend expects: { room, name } */
 export async function joinRoom({ room, name }) {
   await connectSocket();
   socket.emit(SOCKET_EVENTS.JOIN_ROOM, {
@@ -99,7 +91,6 @@ export async function joinRoom({ room, name }) {
   });
 }
 
-/** Drawing events */
 export async function emitStrokeBegin(payload) {
   await connectSocket();
   socket.emit(SOCKET_EVENTS.STROKE_BEGIN, payload);
@@ -120,7 +111,16 @@ export async function clearBoard() {
   socket.emit(SOCKET_EVENTS.BOARD_CLEAR);
 }
 
-/** Cursor events */
+export async function undoBoard() {
+  await connectSocket();
+  socket.emit(SOCKET_EVENTS.UNDO_BOARD);
+}
+
+export async function redoBoard() {
+  await connectSocket();
+  socket.emit(SOCKET_EVENTS.REDO_BOARD);
+}
+
 export async function moveCursor(payload) {
   await connectSocket();
   socket.emit(SOCKET_EVENTS.CURSOR_MOVE, payload);
@@ -131,21 +131,15 @@ export async function leaveCursor() {
   socket.emit(SOCKET_EVENTS.CURSOR_LEAVE);
 }
 
-/**
- * Generic subscription helper.
- * Returns an unsubscribe function so React components can clean up safely.
- */
 export function on(event, handler) {
   socket.on(event, handler);
   return () => socket.off(event, handler);
 }
 
-/** Safer alias for one-time listeners. */
 export function once(event, handler) {
   socket.once(event, handler);
 }
 
-/** Optional: remove every listener when leaving the board/page. */
 export function removeAllSocketListeners() {
   socket.removeAllListeners();
 }

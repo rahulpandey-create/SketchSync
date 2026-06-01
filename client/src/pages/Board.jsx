@@ -1,7 +1,8 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import CanvasBoard from "../components/canvas/CanvasBoard";
-import Toolbar from "../components/toolbar/Toolbar";
+import CanvasBoard from "../components/Canvas/CanvasBoard";
+import Toolbar from "../components/Toolbar/Toolbar";
+import { redoBoard, undoBoard } from "../services/socket";
 
 const STORAGE_KEYS = {
   room: "sketchsync_room",
@@ -21,6 +22,7 @@ function getInitialName() {
 }
 
 export default function Board() {
+  const canvasBoardRef = useRef(null);
   const [searchParams, setSearchParams] = useSearchParams();
 
   const [roomInput, setRoomInput] = useState(() => getInitialRoom(searchParams));
@@ -104,6 +106,18 @@ export default function Board() {
     }
   };
 
+  const handleClearBoard = () => {
+    canvasBoardRef.current?.clearBoard?.();
+  };
+
+  const handleUndo = async () => {
+    await undoBoard();
+  };
+
+  const handleRedo = async () => {
+    await redoBoard();
+  };
+
   if (!joined) {
     return (
       <div className="min-h-screen bg-slate-50 px-4 py-10 text-slate-900">
@@ -112,7 +126,9 @@ export default function Board() {
             <Link to="/" className="text-sm font-medium text-slate-500 hover:text-slate-900">
               ← Back home
             </Link>
-            <h1 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">Join a SketchSync board</h1>
+            <h1 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">
+              Join a SketchSync board
+            </h1>
             <p className="mt-2 max-w-xl text-sm text-slate-600 sm:text-base">
               Create or enter a room, then start drawing in real time.
             </p>
@@ -179,7 +195,9 @@ export default function Board() {
       <div className="mx-auto flex h-[calc(100vh-2rem)] w-full max-w-[1600px] flex-col gap-4">
         <header className="flex flex-col gap-3 rounded-3xl border border-slate-200 bg-white px-4 py-4 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <div>
-            <p className="text-xs font-medium uppercase tracking-[0.2em] text-slate-500">SketchSync</p>
+            <p className="text-xs font-medium uppercase tracking-[0.2em] text-slate-500">
+              SketchSync
+            </p>
             <h2 className="mt-1 text-lg font-semibold sm:text-xl">Room: {roomId}</h2>
             <p className="text-sm text-slate-600">
               {users.length} participant{users.length === 1 ? "" : "s"} online
@@ -211,15 +229,15 @@ export default function Board() {
           setColor={setColor}
           size={size}
           setSize={setSize}
-          onClear={() => {
-            // CanvasBoard handles the actual socket clear when its button is used.
-            // This keeps toolbar pure and reusable.
-          }}
+          onClear={handleClearBoard}
+          onUndo={handleUndo}
+          onRedo={handleRedo}
           disabled={!socketReady}
         />
 
         <main className="min-h-0 flex-1 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
           <CanvasBoard
+            ref={canvasBoardRef}
             roomId={roomId}
             userName={userName}
             tool={tool}

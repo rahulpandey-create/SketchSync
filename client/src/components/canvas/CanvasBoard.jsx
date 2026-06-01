@@ -20,21 +20,7 @@ import {
   on,
   removeAllSocketListeners,
 } from "../../services/socket";
-/**
- * CanvasBoard
- * Production-oriented collaborative whiteboard canvas.
- * Responsibilities:
- * - Connect to the socket server
- * - Join a room
- * - Draw locally on mouse/touch/pen input
- * - Broadcast stroke events
- * - Rebuild remote strokes from socket events
- * - Show basic loading / connection state
- *
- * Expected backend events (already implemented in server):
- * init, user-joined, user-left, stroke-begin, stroke-point, stroke-end,
- * board-clear, cursor-move, cursor-leave.
- */
+
 const CanvasBoard = forwardRef(function CanvasBoard(
   {
     roomId,
@@ -104,8 +90,8 @@ const CanvasBoard = forwardRef(function CanvasBoard(
 
       if (!points.length) return;
 
-      const strokeColor = stroke.tool === "eraser" ? "#ffffff" : stroke.color || color;
-      const strokeSize = stroke.size || size;
+      const strokeColor = stroke.tool === "eraser" ? "#ffffff" : stroke.color || "#111827";
+      const strokeSize = stroke.size || 4;
 
       ctx.save();
       ctx.globalCompositeOperation = stroke.tool === "eraser" ? "destination-out" : "source-over";
@@ -131,7 +117,7 @@ const CanvasBoard = forwardRef(function CanvasBoard(
       ctx.stroke();
       ctx.restore();
     },
-    [color, getCanvasMetrics, getContext, size]
+    [getCanvasMetrics, getContext]
   );
 
   const redrawAll = useCallback(() => {
@@ -293,6 +279,7 @@ const CanvasBoard = forwardRef(function CanvasBoard(
 
       event?.preventDefault?.();
       event?.stopPropagation?.();
+      event.currentTarget?.releasePointerCapture?.(event.pointerId);
 
       const finishedStroke = currentStrokeRef.current;
       currentStrokeRef.current = null;
@@ -313,9 +300,15 @@ const CanvasBoard = forwardRef(function CanvasBoard(
 
   useEffect(() => {
     resizeCanvas();
+
     const onResize = () => resizeCanvas();
     window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
+    window.visualViewport?.addEventListener("resize", onResize);
+
+    return () => {
+      window.removeEventListener("resize", onResize);
+      window.visualViewport?.removeEventListener("resize", onResize);
+    };
   }, [resizeCanvas]);
 
   useEffect(() => {
@@ -371,12 +364,25 @@ const CanvasBoard = forwardRef(function CanvasBoard(
       strokes.forEach((stroke) => {
         if (stroke?.id) nextMap.set(stroke.id, stroke);
       });
+
       remoteStrokesRef.current = nextMap;
       localStrokesRef.current = [];
       setUsers(Array.isArray(payload?.users) ? payload.users : []);
       onUsersChange?.(Array.isArray(payload?.users) ? payload.users : []);
       onInit?.(payload);
       setStatus("ready");
+      scheduleRedraw();
+    });
+
+    const stopBoardState = on(SOCKET_EVENTS.BOARD_STATE, (payload) => {
+      const strokes = Array.isArray(payload?.strokes) ? payload.strokes : [];
+      const nextMap = new Map();
+      strokes.forEach((stroke) => {
+        if (stroke?.id) nextMap.set(stroke.id, stroke);
+      });
+
+      remoteStrokesRef.current = nextMap;
+      localStrokesRef.current = [];
       scheduleRedraw();
     });
 
@@ -396,21 +402,27 @@ const CanvasBoard = forwardRef(function CanvasBoard(
       });
     });
 
-    const stopStrokeBegin = on(SOCKET_EVENTS.STROKE_BEGIN, ({ strokeId, tool: incomingTool, color: incomingColor, size: incomingSize, x, y }) => {
-      if (!strokeId) return;
-      remoteStrokesRef.current.set(strokeId, {
-        id: strokeId,
-        tool: incomingTool,
-        color: incomingColor,
-        size: incomingSize,
-        points: [{ xNorm: x, yNorm: y }],
-      });
-      scheduleRedraw();
-    });
+    const stopStrokeBegin = on(
+      SOCKET_EVENTS.STROKE_BEGIN,
+      ({ strokeId, tool: incomingTool, color: incomingColor, size: incomingSize, x, y }) => {
+        if (!strokeId) return;
+
+        remoteStrokesRef.current.set(strokeId, {
+          id: strokeId,
+          tool: incomingTool,
+          color: incomingColor,
+          size: incomingSize,
+          points: [{ xNorm: x, yNorm: y }],
+        });
+
+        scheduleRedraw();
+      }
+    );
 
     const stopStrokePoint = on(SOCKET_EVENTS.STROKE_POINT, ({ strokeId, x, y }) => {
       const stroke = remoteStrokesRef.current.get(strokeId);
       if (!stroke) return;
+
       stroke.points = stroke.points || [];
       stroke.points.push({ xNorm: x, yNorm: y });
       remoteStrokesRef.current.set(strokeId, stroke);
@@ -434,6 +446,7 @@ const CanvasBoard = forwardRef(function CanvasBoard(
       stopDisconnect();
       stopError();
       stopInit();
+      stopBoardState();
       stopJoin();
       stopLeft();
       stopStrokeBegin();
@@ -464,7 +477,10 @@ const CanvasBoard = forwardRef(function CanvasBoard(
   }, [status]);
 
   return (
-    <div ref={wrapperRef} className={`relative h-full w-full overflow-hidden rounded-2xl bg-white shadow-sm ${className}`}>
+    <div
+      ref={wrapperRef}
+      className={`relative h-full w-full overflow-hidden rounded-2xl bg-white shadow-sm ${className}`}
+    >
       <div className="absolute left-4 top-4 z-10 rounded-full bg-black/80 px-3 py-1 text-xs font-medium text-white">
         {statusLabel} · {users.length} user{users.length === 1 ? "" : "s"}
       </div>
@@ -490,7 +506,9 @@ const CanvasBoard = forwardRef(function CanvasBoard(
 
       {!connected && (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-white/40">
-          <div className="rounded-2xl bg-white px-4 py-3 text-sm shadow-md">{statusLabel}</div>
+          <div className="rounded-2xl bg-white px-4 py-3 text-sm shadow-md">
+            {statusLabel}
+          </div>
         </div>
       )}
     </div>

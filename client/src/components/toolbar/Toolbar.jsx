@@ -1,5 +1,5 @@
 import React from "react";
-import { Eraser, Pencil, Trash2 } from "lucide-react";
+import { Eraser, Pencil, Redo2, Trash2, Undo2 } from "lucide-react";
 
 const DEFAULT_SWATCHES = [
   "#111827",
@@ -21,6 +21,8 @@ export default function Toolbar({
   size,
   setSize,
   onClear,
+  onUndo,
+  onRedo,
   disabled = false,
   swatches = DEFAULT_SWATCHES,
 }) {
@@ -62,6 +64,30 @@ export default function Toolbar({
 
         <button
           type="button"
+          onClick={onUndo}
+          disabled={disabled}
+          className={`inline-flex items-center gap-2 rounded-xl bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-200 ${
+            disabled ? "cursor-not-allowed opacity-60" : ""
+          }`}
+        >
+          <Undo2 className="h-4 w-4" />
+          Undo
+        </button>
+
+        <button
+          type="button"
+          onClick={onRedo}
+          disabled={disabled}
+          className={`inline-flex items-center gap-2 rounded-xl bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-200 ${
+            disabled ? "cursor-not-allowed opacity-60" : ""
+          }`}
+        >
+          <Redo2 className="h-4 w-4" />
+          Redo
+        </button>
+
+        <button
+          type="button"
           onClick={onClear}
           disabled={disabled}
           className={`inline-flex items-center gap-2 rounded-xl bg-rose-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-rose-600 ${
@@ -77,6 +103,7 @@ export default function Toolbar({
         <div className="flex flex-wrap items-center gap-2">
           {swatches.map((swatch) => {
             const active = color.toLowerCase() === swatch.toLowerCase();
+
             return (
               <button
                 key={swatch}
