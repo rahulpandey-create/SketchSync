@@ -66,6 +66,8 @@ async function saveRoomState(roomId, state) {
 }
 
 async function appendStroke(roomId, stroke) {
+  console.log("appendStroke called", roomId);
+
   const room = await getRoomState(roomId);
 
   room.strokes.push(stroke);

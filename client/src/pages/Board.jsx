@@ -37,6 +37,7 @@ export default function Board() {
   const [size, setSize] = useState(4);
   const [users, setUsers] = useState([]);
   const [socketReady, setSocketReady] = useState(false);
+  const [roomReady, setRoomReady] = useState(false);
 
   const roomDisplay = useMemo(() => roomId || roomInput || "", [roomId, roomInput]);
 
@@ -52,6 +53,19 @@ export default function Board() {
     if (roomId) window.localStorage.setItem(STORAGE_KEYS.room, roomId);
     if (userName) window.localStorage.setItem(STORAGE_KEYS.name, userName);
   }, [roomId, userName]);
+
+  useEffect(() => {
+    const savedRoom = searchParams.get("room") || window.localStorage.getItem(STORAGE_KEYS.room) || "";
+    const savedName = window.localStorage.getItem(STORAGE_KEYS.name) || "";
+
+    if (!joined && savedRoom && savedName) {
+      setRoomId(savedRoom);
+      setUserName(savedName);
+      setRoomInput(savedRoom);
+      setNameInput(savedName);
+      setJoined(true);
+    }
+  }, [joined, searchParams]);
 
   const handleJoin = (event) => {
     event.preventDefault();
@@ -76,8 +90,25 @@ export default function Board() {
     }
   };
 
-  const handleRejoin = () => {
+  const handleChangeRoom = () => {
     setJoined(false);
+  
+    setRoomReady(false);
+    setSocketReady(false);
+  
+    setRoomId("");
+    setUserName("");
+  
+    setRoomInput("");
+    setNameInput(nameInput);
+  
+    setUsers([]);
+  
+    setSearchParams({});
+  
+    localStorage.removeItem(STORAGE_KEYS.room);
+  
+    canvasBoardRef.current = null;
   };
 
   const handleUsersChange = (nextUsers) => {
@@ -214,7 +245,7 @@ export default function Board() {
             </button>
             <button
               type="button"
-              onClick={handleRejoin}
+              onClick={handleChangeRoom}
               className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800"
             >
               Change room
@@ -232,7 +263,7 @@ export default function Board() {
           onClear={handleClearBoard}
           onUndo={handleUndo}
           onRedo={handleRedo}
-          disabled={!socketReady}
+          disabled={!socketReady || !roomReady}
         />
 
         <main className="min-h-0 flex-1 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
@@ -246,6 +277,7 @@ export default function Board() {
             onUsersChange={handleUsersChange}
             onInit={handleInit}
             onConnectionChange={setSocketReady}
+            onRoomReadyChange={setRoomReady}
           />
         </main>
       </div>

@@ -21,6 +21,29 @@ import {
   removeAllSocketListeners,
 } from "../../services/socket";
 
+function clamp01(value) {
+  return Math.max(0, Math.min(1, value));
+}
+
+function pointToCanvasPoint(rawPoint, width, height) {
+  if (!rawPoint) return null;
+
+  if (Number.isFinite(rawPoint.xNorm) && Number.isFinite(rawPoint.yNorm)) {
+    return {
+      x: clamp01(rawPoint.xNorm) * width,
+      y: clamp01(rawPoint.yNorm) * height,
+    };
+  }
+
+  if (Number.isFinite(rawPoint.x) && Number.isFinite(rawPoint.y)) {
+    const x = rawPoint.x <= 1 && rawPoint.x >= 0 ? rawPoint.x * width : rawPoint.x;
+    const y = rawPoint.y <= 1 && rawPoint.y >= 0 ? rawPoint.y * height : rawPoint.y;
+    return { x, y };
+  }
+
+  return null;
+}
+
 const CanvasBoard = forwardRef(function CanvasBoard(
   {
     roomId,
@@ -32,6 +55,7 @@ const CanvasBoard = forwardRef(function CanvasBoard(
     onUsersChange,
     onInit,
     onConnectionChange,
+    onRoomReadyChange,
   },
   ref
 ) {
@@ -46,6 +70,7 @@ const CanvasBoard = forwardRef(function CanvasBoard(
 
   const [status, setStatus] = useState("idle");
   const [connected, setConnected] = useState(false);
+  const [roomReady, setRoomReady] = useState(false);
   const [users, setUsers] = useState([]);
 
   const normalizedRoomId = useMemo(() => {
@@ -82,11 +107,8 @@ const CanvasBoard = forwardRef(function CanvasBoard(
 
       const { width, height } = metrics;
       const points = stroke.points
-        .map((p) => ({
-          x: Math.max(0, Math.min(1, p.xNorm)) * width,
-          y: Math.max(0, Math.min(1, p.yNorm)) * height,
-        }))
-        .filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y));
+        .map((p) => pointToCanvasPoint(p, width, height))
+        .filter((p) => p && Number.isFinite(p.x) && Number.isFinite(p.y));
 
       if (!points.length) return;
 
@@ -158,10 +180,11 @@ const CanvasBoard = forwardRef(function CanvasBoard(
   }, [getCanvasMetrics, getContext]);
 
   const handleClear = useCallback(async () => {
+    if (!roomReady) return;
     clearLocalAndRemote();
     await clearBoard();
     scheduleRedraw();
-  }, [clearLocalAndRemote, scheduleRedraw]);
+  }, [clearLocalAndRemote, roomReady, scheduleRedraw]);
 
   useImperativeHandle(
     ref,
@@ -210,7 +233,7 @@ const CanvasBoard = forwardRef(function CanvasBoard(
 
   const startStroke = useCallback(
     async (event) => {
-      if (!normalizedRoomId) return;
+      if (!normalizedRoomId || !roomReady) return;
       if (event.button !== undefined && event.button !== 0) return;
 
       event.preventDefault();
@@ -241,12 +264,12 @@ const CanvasBoard = forwardRef(function CanvasBoard(
         y: point.yNorm,
       });
     },
-    [color, normalizedRoomId, scheduleRedraw, size, tool, toPoint]
+    [color, normalizedRoomId, roomReady, scheduleRedraw, size, tool, toPoint]
   );
 
   const continueStroke = useCallback(
     async (event) => {
-      if (!isDrawingRef.current || !currentStrokeRef.current) return;
+      if (!roomReady || !isDrawingRef.current || !currentStrokeRef.current) return;
 
       event.preventDefault();
       event.stopPropagation();
@@ -270,12 +293,12 @@ const CanvasBoard = forwardRef(function CanvasBoard(
 
       await moveCursor({ x: point.xNorm, y: point.yNorm });
     },
-    [scheduleRedraw, toPoint]
+    [roomReady, scheduleRedraw, toPoint]
   );
 
   const endStroke = useCallback(
     async (event) => {
-      if (!isDrawingRef.current || !currentStrokeRef.current) return;
+      if (!roomReady || !isDrawingRef.current || !currentStrokeRef.current) return;
 
       event?.preventDefault?.();
       event?.stopPropagation?.();
@@ -295,7 +318,7 @@ const CanvasBoard = forwardRef(function CanvasBoard(
       await emitStrokeEnd({ strokeId: finishedStroke.id });
       await leaveCursor();
     },
-    [scheduleRedraw]
+    [roomReady, scheduleRedraw]
   );
 
   useEffect(() => {
@@ -316,28 +339,45 @@ const CanvasBoard = forwardRef(function CanvasBoard(
 
     let mounted = true;
     setStatus("connecting");
+    setRoomReady(false);
+    onRoomReadyChange?.(false);
 
     (async () => {
       try {
         await connectSocket();
         if (!mounted) return;
+
         await joinRoom({ room: normalizedRoomId, name: userName });
+
         setConnected(true);
+        onConnectionChange?.(true);
       } catch (error) {
         console.error("Socket connection failed:", error);
         if (mounted) {
           setStatus("error");
           setConnected(false);
+          setRoomReady(false);
+          onRoomReadyChange?.(false);
+          onConnectionChange?.(false);
         }
       }
     })();
 
     return () => {
       mounted = false;
+    
+      setConnected(false);
+      setRoomReady(false);
+    
+      onConnectionChange?.(false);
+      onRoomReadyChange?.(false);
+    
       endStroke();
       leaveCursor();
+    
+      clearLocalAndRemote();
     };
-  }, [endStroke, normalizedRoomId, userName]);
+  }, [endStroke, normalizedRoomId, onConnectionChange, onRoomReadyChange, userName]);
 
   useEffect(() => {
     const stopConnect = on(SOCKET_EVENTS.CONNECT, () => {
@@ -350,12 +390,16 @@ const CanvasBoard = forwardRef(function CanvasBoard(
       setConnected(false);
       setStatus("disconnected");
       onConnectionChange?.(false);
+      setRoomReady(false);
+      onRoomReadyChange?.(false);
     });
 
     const stopError = on(SOCKET_EVENTS.CONNECT_ERROR, () => {
       setConnected(false);
       setStatus("error");
       onConnectionChange?.(false);
+      setRoomReady(false);
+      onRoomReadyChange?.(false);
     });
 
     const stopInit = on(SOCKET_EVENTS.INIT, (payload) => {
@@ -371,6 +415,8 @@ const CanvasBoard = forwardRef(function CanvasBoard(
       onUsersChange?.(Array.isArray(payload?.users) ? payload.users : []);
       onInit?.(payload);
       setStatus("ready");
+      setRoomReady(true);
+      onRoomReadyChange?.(true);
       scheduleRedraw();
     });
 
@@ -457,7 +503,7 @@ const CanvasBoard = forwardRef(function CanvasBoard(
       stopCursorLeave();
       removeAllSocketListeners();
     };
-  }, [clearLocalAndRemote, onConnectionChange, onInit, onUsersChange, scheduleRedraw]);
+  }, [clearLocalAndRemote, onConnectionChange, onInit, onRoomReadyChange, onUsersChange, scheduleRedraw]);
 
   useEffect(() => {
     return () => {
@@ -488,6 +534,7 @@ const CanvasBoard = forwardRef(function CanvasBoard(
       <canvas
         ref={canvasRef}
         className="h-full w-full touch-none select-none"
+        style={{ pointerEvents: roomReady ? "auto" : "none" }}
         onPointerDown={startStroke}
         onPointerMove={continueStroke}
         onPointerUp={endStroke}
@@ -499,7 +546,8 @@ const CanvasBoard = forwardRef(function CanvasBoard(
       <button
         type="button"
         onClick={handleClear}
-        className="absolute bottom-4 right-4 z-10 rounded-xl bg-black px-4 py-2 text-sm font-medium text-white transition hover:bg-black/90"
+        disabled={!roomReady}
+        className="absolute bottom-4 right-4 z-10 rounded-xl bg-black px-4 py-2 text-sm font-medium text-white transition hover:bg-black/90 disabled:cursor-not-allowed disabled:opacity-50"
       >
         Clear board
       </button>
