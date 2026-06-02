@@ -338,48 +338,8 @@ const CanvasBoard = forwardRef(function CanvasBoard(
     if (!normalizedRoomId) return undefined;
 
     let mounted = true;
-    setStatus("connecting");
-    setRoomReady(false);
-    onRoomReadyChange?.(false);
 
-    (async () => {
-      try {
-        await connectSocket();
-        if (!mounted) return;
-
-        await joinRoom({ room: normalizedRoomId, name: userName });
-
-        setConnected(true);
-        onConnectionChange?.(true);
-      } catch (error) {
-        console.error("Socket connection failed:", error);
-        if (mounted) {
-          setStatus("error");
-          setConnected(false);
-          setRoomReady(false);
-          onRoomReadyChange?.(false);
-          onConnectionChange?.(false);
-        }
-      }
-    })();
-
-    return () => {
-      mounted = false;
-    
-      setConnected(false);
-      setRoomReady(false);
-    
-      onConnectionChange?.(false);
-      onRoomReadyChange?.(false);
-    
-      endStroke();
-      leaveCursor();
-    
-      clearLocalAndRemote();
-    };
-  }, [endStroke, normalizedRoomId, onConnectionChange, onRoomReadyChange, userName]);
-
-  useEffect(() => {
+    // Register listeners first so INIT cannot be missed.
     const stopConnect = on(SOCKET_EVENTS.CONNECT, () => {
       setConnected(true);
       setStatus("connected");
@@ -389,16 +349,16 @@ const CanvasBoard = forwardRef(function CanvasBoard(
     const stopDisconnect = on(SOCKET_EVENTS.DISCONNECT, () => {
       setConnected(false);
       setStatus("disconnected");
-      onConnectionChange?.(false);
       setRoomReady(false);
+      onConnectionChange?.(false);
       onRoomReadyChange?.(false);
     });
 
     const stopError = on(SOCKET_EVENTS.CONNECT_ERROR, () => {
       setConnected(false);
       setStatus("error");
-      onConnectionChange?.(false);
       setRoomReady(false);
+      onConnectionChange?.(false);
       onRoomReadyChange?.(false);
     });
 
@@ -487,7 +447,33 @@ const CanvasBoard = forwardRef(function CanvasBoard(
     const stopCursorMove = on(SOCKET_EVENTS.CURSOR_MOVE, () => {});
     const stopCursorLeave = on(SOCKET_EVENTS.CURSOR_LEAVE, () => {});
 
+    // Then connect + join.
+    (async () => {
+      try {
+        setStatus("connecting");
+        setConnected(false);
+        setRoomReady(false);
+        onRoomReadyChange?.(false);
+
+        await connectSocket();
+        if (!mounted) return;
+
+        await joinRoom({ room: normalizedRoomId, name: userName });
+      } catch (error) {
+        console.error("Socket connection failed:", error);
+        if (mounted) {
+          setStatus("error");
+          setConnected(false);
+          setRoomReady(false);
+          onConnectionChange?.(false);
+          onRoomReadyChange?.(false);
+        }
+      }
+    })();
+
     return () => {
+      mounted = false;
+
       stopConnect();
       stopDisconnect();
       stopError();
@@ -502,8 +488,17 @@ const CanvasBoard = forwardRef(function CanvasBoard(
       stopCursorMove();
       stopCursorLeave();
       removeAllSocketListeners();
+
+      setConnected(false);
+      setRoomReady(false);
+      onConnectionChange?.(false);
+      onRoomReadyChange?.(false);
+
+      endStroke();
+      leaveCursor();
+      clearLocalAndRemote();
     };
-  }, [clearLocalAndRemote, onConnectionChange, onInit, onRoomReadyChange, onUsersChange, scheduleRedraw]);
+  }, [clearLocalAndRemote, endStroke, normalizedRoomId, onConnectionChange, onInit, onRoomReadyChange, onUsersChange, scheduleRedraw, userName]);
 
   useEffect(() => {
     return () => {
