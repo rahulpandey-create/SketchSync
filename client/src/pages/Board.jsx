@@ -1,7 +1,7 @@
 import React, {  useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import CanvasBoard from "../components/canvas/CanvasBoard";
-import Toolbar from "../components/Toolbar/Toolbar";
+import Toolbar from "../components/toolbar/Toolbar";
 import { redoBoard, undoBoard } from "../services/socket";
 
 const STORAGE_KEYS = {
