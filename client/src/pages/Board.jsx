@@ -1,6 +1,6 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, {  useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import CanvasBoard from "../components/Canvas/CanvasBoard";
+import CanvasBoard from "../components/canvas/CanvasBoard";
 import Toolbar from "../components/Toolbar/Toolbar";
 import { redoBoard, undoBoard } from "../services/socket";
 
@@ -10,6 +10,11 @@ const STORAGE_KEYS = {
 };
 
 export default function Board() {
+
+  const handleUsersChange = useCallback((nextUsers) => {
+    setUsers(nextUsers);
+  }, []);
+
   const canvasBoardRef = useRef(null);
 
   const [searchParams, setSearchParams] = useSearchParams();
@@ -31,21 +36,34 @@ export default function Board() {
   const [socketReady, setSocketReady] = useState(false);
   const [roomReady, setRoomReady] = useState(false);
 
+  
+  const handleSocketReadyChange = useCallback((value) => {
+    console.log("socket ready:", value);
+    setSocketReady(value);
+  }, []);
+  
+  const handleRoomReadyChange = useCallback((value) => {
+    console.log("room ready:", value);
+    setRoomReady(value);
+  }, []);
+  
+  const handleInit = useCallback((payload) => {
+    if (payload?.you?.name) {
+      setUserName(payload.you.name);
+    }
+  }, []);
+
   useEffect(() => {
-    const savedRoom =
-      searchParams.get("room") ||
-      localStorage.getItem(STORAGE_KEYS.room);
-
-    const savedName =
-      localStorage.getItem(STORAGE_KEYS.name);
-
-    if (!joined && savedRoom && savedName) {
-      setRoomId(savedRoom);
+    const urlRoom = searchParams.get("room");
+    const savedName = localStorage.getItem(STORAGE_KEYS.name);
+  
+    if (!joined && urlRoom && savedName) {
+      setRoomId(urlRoom);
       setUserName(savedName);
-
-      setRoomInput(savedRoom);
+  
+      setRoomInput(urlRoom);
       setNameInput(savedName);
-
+  
       setJoined(true);
     }
   }, [joined, searchParams]);
@@ -98,6 +116,7 @@ export default function Board() {
     setSearchParams({});
 
     localStorage.removeItem(STORAGE_KEYS.room);
+    localStorage.removeItem(STORAGE_KEYS.name);
 
     canvasBoardRef.current = null;
   };
@@ -156,11 +175,29 @@ export default function Board() {
               className="w-full rounded-xl border p-3"
             />
 
-            <button
-              className="w-full rounded-xl bg-black py-3 text-white"
-            >
-              Enter board
-            </button>
+<div className="flex flex-col gap-3">
+
+<button
+  type="submit"
+  className="w-full rounded-xl bg-black py-3 text-white"
+>
+  Enter board
+</button>
+
+<button
+  type="button"
+  onClick={() => {
+    const generatedRoom =
+      `room-${Math.random().toString(36).slice(2, 9)}`;
+
+    setRoomInput(generatedRoom);
+  }}
+  className="w-full rounded-xl border border-slate-300 py-3"
+>
+  Generate Room ID
+</button>
+
+</div>
 
           </div>
         </form>
@@ -205,7 +242,9 @@ export default function Board() {
           </div>
 
         </header>
-
+        <p>socketReady: {String(socketReady)}</p>
+<p>roomReady: {String(roomReady)}</p>
+<p>disabled: {String(!(socketReady && roomReady))}</p>
         <Toolbar
           tool={tool}
           setTool={setTool}
@@ -216,22 +255,33 @@ export default function Board() {
           onClear={handleClear}
           onUndo={handleUndo}
           onRedo={handleRedo}
-          disabled={!socketReady || !roomReady}
+          disabled={!(socketReady && roomReady)}
+          // disabled={false}
         />
 
         <main className="flex-1 overflow-hidden rounded-3xl border bg-white">
 
-          <CanvasBoard
-            ref={canvasBoardRef}
-            roomId={roomId}
-            userName={userName}
-            tool={tool}
-            color={color}
-            size={size}
-            onUsersChange={setUsers}
-            onConnectionChange={setSocketReady}
-            onRoomReadyChange={setRoomReady}
-          />
+
+        <CanvasBoard
+
+        
+  key={roomId}
+  ref={canvasBoardRef}
+  roomId={roomId}
+  userName={userName}
+  tool={tool}
+  color={color}
+  size={size}
+  onUsersChange={handleUsersChange}
+  onInit={handleInit}
+  onConnectionChange={handleSocketReadyChange}
+  onRoomReadyChange={handleRoomReadyChange}
+/>
+console.log(
+  "BOARD PASSING:",
+  roomId,
+  userName
+);
 
         </main>
 

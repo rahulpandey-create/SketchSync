@@ -92,7 +92,7 @@ function registerBoardSockets(io) {
       runtimeRoom.users.set(socket.id, { name: myName, color: myColor });
 
       const persistedState = await getRoomState(roomId);
-
+      console.log("SENDING INIT FOR ROOM:", roomId);
       socket.emit("init", {
         strokes: persistedState.strokes,
         redoStrokes: persistedState.redoStrokes,

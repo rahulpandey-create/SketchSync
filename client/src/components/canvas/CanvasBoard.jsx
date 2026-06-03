@@ -36,8 +36,10 @@ function pointToCanvasPoint(rawPoint, width, height) {
   }
 
   if (Number.isFinite(rawPoint.x) && Number.isFinite(rawPoint.y)) {
-    const x = rawPoint.x <= 1 && rawPoint.x >= 0 ? rawPoint.x * width : rawPoint.x;
-    const y = rawPoint.y <= 1 && rawPoint.y >= 0 ? rawPoint.y * height : rawPoint.y;
+    const x =
+      rawPoint.x <= 1 && rawPoint.x >= 0 ? rawPoint.x * width : rawPoint.x;
+    const y =
+      rawPoint.y <= 1 && rawPoint.y >= 0 ? rawPoint.y * height : rawPoint.y;
     return { x, y };
   }
 
@@ -112,11 +114,13 @@ const CanvasBoard = forwardRef(function CanvasBoard(
 
       if (!points.length) return;
 
-      const strokeColor = stroke.tool === "eraser" ? "#ffffff" : stroke.color || "#111827";
+      const strokeColor =
+        stroke.tool === "eraser" ? "#ffffff" : stroke.color || "#111827";
       const strokeSize = stroke.size || 4;
 
       ctx.save();
-      ctx.globalCompositeOperation = stroke.tool === "eraser" ? "destination-out" : "source-over";
+      ctx.globalCompositeOperation =
+        stroke.tool === "eraser" ? "destination-out" : "source-over";
       ctx.strokeStyle = strokeColor;
       ctx.fillStyle = strokeColor;
       ctx.lineWidth = strokeSize;
@@ -125,7 +129,13 @@ const CanvasBoard = forwardRef(function CanvasBoard(
 
       if (points.length === 1) {
         ctx.beginPath();
-        ctx.arc(points[0].x, points[0].y, Math.max(1, strokeSize / 2), 0, Math.PI * 2);
+        ctx.arc(
+          points[0].x,
+          points[0].y,
+          Math.max(1, strokeSize / 2),
+          0,
+          Math.PI * 2
+        );
         ctx.fill();
         ctx.restore();
         return;
@@ -269,7 +279,8 @@ const CanvasBoard = forwardRef(function CanvasBoard(
 
   const continueStroke = useCallback(
     async (event) => {
-      if (!roomReady || !isDrawingRef.current || !currentStrokeRef.current) return;
+      if (!roomReady || !isDrawingRef.current || !currentStrokeRef.current)
+        return;
 
       event.preventDefault();
       event.stopPropagation();
@@ -281,7 +292,10 @@ const CanvasBoard = forwardRef(function CanvasBoard(
         return;
       }
 
-      currentStrokeRef.current.points.push({ xNorm: point.xNorm, yNorm: point.yNorm });
+      currentStrokeRef.current.points.push({
+        xNorm: point.xNorm,
+        yNorm: point.yNorm,
+      });
       lastPointRef.current = { x: point.x, y: point.y };
       scheduleRedraw();
 
@@ -298,7 +312,8 @@ const CanvasBoard = forwardRef(function CanvasBoard(
 
   const endStroke = useCallback(
     async (event) => {
-      if (!roomReady || !isDrawingRef.current || !currentStrokeRef.current) return;
+      if (!roomReady || !isDrawingRef.current || !currentStrokeRef.current)
+        return;
 
       event?.preventDefault?.();
       event?.stopPropagation?.();
@@ -335,7 +350,16 @@ const CanvasBoard = forwardRef(function CanvasBoard(
   }, [resizeCanvas]);
 
   useEffect(() => {
+    console.log(
+      "normalizedRoomId value:",
+      normalizedRoomId
+    );
     if (!normalizedRoomId) return undefined;
+    console.log(
+      "EFFECT START",
+      normalizedRoomId,
+      userName
+    );
 
     let mounted = true;
 
@@ -349,34 +373,56 @@ const CanvasBoard = forwardRef(function CanvasBoard(
     const stopDisconnect = on(SOCKET_EVENTS.DISCONNECT, () => {
       setConnected(false);
       setStatus("disconnected");
-      setRoomReady(false);
+
       onConnectionChange?.(false);
-      onRoomReadyChange?.(false);
     });
 
     const stopError = on(SOCKET_EVENTS.CONNECT_ERROR, () => {
       setConnected(false);
       setStatus("error");
-      setRoomReady(false);
+
       onConnectionChange?.(false);
-      onRoomReadyChange?.(false);
     });
 
     const stopInit = on(SOCKET_EVENTS.INIT, (payload) => {
+      console.log("INIT EVENT FIRED");
+    
       const strokes = Array.isArray(payload?.strokes) ? payload.strokes : [];
       const nextMap = new Map();
+    
       strokes.forEach((stroke) => {
         if (stroke?.id) nextMap.set(stroke.id, stroke);
       });
-
+    
       remoteStrokesRef.current = nextMap;
       localStrokesRef.current = [];
-      setUsers(Array.isArray(payload?.users) ? payload.users : []);
-      onUsersChange?.(Array.isArray(payload?.users) ? payload.users : []);
+    
+      setUsers(
+        Array.isArray(payload?.users)
+          ? payload.users
+          : []
+      );
+    
+      onUsersChange?.(
+        Array.isArray(payload?.users)
+          ? payload.users
+          : []
+      );
+    
       onInit?.(payload);
+    
+      console.log("setting local room ready");
+    
       setStatus("ready");
+    
       setRoomReady(true);
+    
+      console.log("calling parent room ready");
+    
       onRoomReadyChange?.(true);
+    
+      console.log("finished INIT block");
+    
       scheduleRedraw();
     });
 
@@ -410,7 +456,14 @@ const CanvasBoard = forwardRef(function CanvasBoard(
 
     const stopStrokeBegin = on(
       SOCKET_EVENTS.STROKE_BEGIN,
-      ({ strokeId, tool: incomingTool, color: incomingColor, size: incomingSize, x, y }) => {
+      ({
+        strokeId,
+        tool: incomingTool,
+        color: incomingColor,
+        size: incomingSize,
+        x,
+        y,
+      }) => {
         if (!strokeId) return;
 
         remoteStrokesRef.current.set(strokeId, {
@@ -425,15 +478,18 @@ const CanvasBoard = forwardRef(function CanvasBoard(
       }
     );
 
-    const stopStrokePoint = on(SOCKET_EVENTS.STROKE_POINT, ({ strokeId, x, y }) => {
-      const stroke = remoteStrokesRef.current.get(strokeId);
-      if (!stroke) return;
+    const stopStrokePoint = on(
+      SOCKET_EVENTS.STROKE_POINT,
+      ({ strokeId, x, y }) => {
+        const stroke = remoteStrokesRef.current.get(strokeId);
+        if (!stroke) return;
 
-      stroke.points = stroke.points || [];
-      stroke.points.push({ xNorm: x, yNorm: y });
-      remoteStrokesRef.current.set(strokeId, stroke);
-      scheduleRedraw();
-    });
+        stroke.points = stroke.points || [];
+        stroke.points.push({ xNorm: x, yNorm: y });
+        remoteStrokesRef.current.set(strokeId, stroke);
+        scheduleRedraw();
+      }
+    );
 
     const stopStrokeEnd = on(SOCKET_EVENTS.STROKE_END, () => {
       scheduleRedraw();
@@ -455,10 +511,22 @@ const CanvasBoard = forwardRef(function CanvasBoard(
         setRoomReady(false);
         onRoomReadyChange?.(false);
 
+        console.log("BEFORE CONNECT");
         await connectSocket();
+        console.log("AFTER CONNECT");
+
         if (!mounted) return;
 
-        await joinRoom({ room: normalizedRoomId, name: userName });
+        setConnected(true);
+        setStatus("connected");
+
+        onConnectionChange?.(true);
+console.log("CALLING JOIN ROOM", normalizedRoomId, userName);
+        await joinRoom({
+          room: normalizedRoomId,
+          name: userName,
+        });
+        console.log("JOIN ROOM FINISHED");
       } catch (error) {
         console.error("Socket connection failed:", error);
         if (mounted) {
@@ -473,7 +541,7 @@ const CanvasBoard = forwardRef(function CanvasBoard(
 
     return () => {
       mounted = false;
-
+      // console.log("Canvas cleanup running");
       stopConnect();
       stopDisconnect();
       stopError();
@@ -487,18 +555,14 @@ const CanvasBoard = forwardRef(function CanvasBoard(
       stopBoardClear();
       stopCursorMove();
       stopCursorLeave();
-      removeAllSocketListeners();
-
-      setConnected(false);
-      setRoomReady(false);
-      onConnectionChange?.(false);
-      onRoomReadyChange?.(false);
+      // removeAllSocketListeners();
 
       endStroke();
       leaveCursor();
-      clearLocalAndRemote();
+
+      // clearLocalAndRemote();
     };
-  }, [clearLocalAndRemote, endStroke, normalizedRoomId, onConnectionChange, onInit, onRoomReadyChange, onUsersChange, scheduleRedraw, userName]);
+  }, [normalizedRoomId, userName]);
 
   useEffect(() => {
     return () => {
@@ -547,7 +611,7 @@ const CanvasBoard = forwardRef(function CanvasBoard(
         Clear board
       </button>
 
-      {!connected && (
+      {(!connected || !roomReady) && (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-white/40">
           <div className="rounded-2xl bg-white px-4 py-3 text-sm shadow-md">
             {statusLabel}

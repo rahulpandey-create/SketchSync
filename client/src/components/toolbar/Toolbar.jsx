@@ -13,7 +13,9 @@ const DEFAULT_SWATCHES = [
   "#ec4899",
 ];
 
+console.log("TOOLBAR DISABLED PROP:", disabled);
 export default function Toolbar({
+
   tool,
   setTool,
   color,
