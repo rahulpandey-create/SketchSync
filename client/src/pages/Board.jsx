@@ -242,9 +242,6 @@ export default function Board() {
           </div>
 
         </header>
-        <p>socketReady: {String(socketReady)}</p>
-<p>roomReady: {String(roomReady)}</p>
-<p>disabled: {String(!(socketReady && roomReady))}</p>
         <Toolbar
           tool={tool}
           setTool={setTool}
