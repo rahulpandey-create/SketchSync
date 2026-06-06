@@ -132,10 +132,10 @@ export async function leaveCursor() {
 }
 
 export function on(event, handler) {
-  console.log("REGISTERING LISTENER:", event);
+  // console.log("REGISTERING LISTENER:", event);
 
   socket.on(event, (...args) => {
-    console.log("EVENT RECEIVED:", event);
+    // console.log("EVENT RECEIVED:", event);
 
     handler(...args);
   });

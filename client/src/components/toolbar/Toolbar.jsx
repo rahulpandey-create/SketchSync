@@ -29,7 +29,7 @@ export default function Toolbar({
   swatches = DEFAULT_SWATCHES,
 }) {
   
-  console.log("TOOLBAR DISABLED PROP:", disabled);
+  // console.log("TOOLBAR DISABLED PROP:", disabled);
   
   const isPen = tool === "pen";
   const isEraser = tool === "eraser";

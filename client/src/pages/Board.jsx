@@ -38,12 +38,12 @@ export default function Board() {
 
   
   const handleSocketReadyChange = useCallback((value) => {
-    console.log("socket ready:", value);
+    // console.log("socket ready:", value);
     setSocketReady(value);
   }, []);
   
   const handleRoomReadyChange = useCallback((value) => {
-    console.log("room ready:", value);
+    // console.log("room ready:", value);
     setRoomReady(value);
   }, []);
   

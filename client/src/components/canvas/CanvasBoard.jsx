@@ -350,16 +350,9 @@ const CanvasBoard = forwardRef(function CanvasBoard(
   }, [resizeCanvas]);
 
   useEffect(() => {
-    console.log(
-      "normalizedRoomId value:",
-      normalizedRoomId
-    );
+    console.log("normalizedRoomId value:", normalizedRoomId);
     if (!normalizedRoomId) return undefined;
-    console.log(
-      "EFFECT START",
-      normalizedRoomId,
-      userName
-    );
+    console.log("EFFECT START", normalizedRoomId, userName);
 
     let mounted = true;
 
@@ -385,44 +378,36 @@ const CanvasBoard = forwardRef(function CanvasBoard(
     });
 
     const stopInit = on(SOCKET_EVENTS.INIT, (payload) => {
-      console.log("INIT EVENT FIRED");
-    
+      // console.log("INIT EVENT FIRED");
+
       const strokes = Array.isArray(payload?.strokes) ? payload.strokes : [];
       const nextMap = new Map();
-    
+
       strokes.forEach((stroke) => {
         if (stroke?.id) nextMap.set(stroke.id, stroke);
       });
-    
+
       remoteStrokesRef.current = nextMap;
       localStrokesRef.current = [];
-    
-      setUsers(
-        Array.isArray(payload?.users)
-          ? payload.users
-          : []
-      );
-    
-      onUsersChange?.(
-        Array.isArray(payload?.users)
-          ? payload.users
-          : []
-      );
-    
+
+      setUsers(Array.isArray(payload?.users) ? payload.users : []);
+
+      onUsersChange?.(Array.isArray(payload?.users) ? payload.users : []);
+
       onInit?.(payload);
-    
+
       console.log("setting local room ready");
-    
+
       setStatus("ready");
-    
+
       setRoomReady(true);
-    
+
       console.log("calling parent room ready");
-    
+
       onRoomReadyChange?.(true);
-    
+
       console.log("finished INIT block");
-    
+
       scheduleRedraw();
     });
 
@@ -521,7 +506,7 @@ const CanvasBoard = forwardRef(function CanvasBoard(
         setStatus("connected");
 
         onConnectionChange?.(true);
-console.log("CALLING JOIN ROOM", normalizedRoomId, userName);
+        // console.log("CALLING JOIN ROOM", normalizedRoomId, userName);
         await joinRoom({
           room: normalizedRoomId,
           name: userName,
